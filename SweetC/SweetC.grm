@@ -1,0 +1,260 @@
+"Name"    = 'SweetC' 
+"Version" = '0'
+"Author"  = 'Kelsey Kurzeja' 
+"About"   = 'Prototype'
+
+"Case Sensitive" = True
+"Start Symbol"   = <Decls>
+
+
+
+{Bin Digit}      = [01]
+{Oct Digit}      = [01234567]
+{Hex Digit}      = {Digit} + [abcdefABCDEF]
+
+{Id Head}        = {Letter} + [_]
+{Id Tail}        = {Id Head} + {Digit}
+
+{String Ch}      = {Printable} - ["]
+{Char Ch}        = {Printable} - ['']
+
+DecLiteral       = {digit}{digit}*
+BinLiteral       = 0b{Bin Digit}*
+OctLiteral       = 0o{Oct Digit}*
+HexLiteral       = 0x{Hex Digit}+
+FloatLiteral     = {Digit}*'.'{Digit}+
+
+StringLiteral    = '"'( {String Ch} | '\'{Printable} )* '"'
+CharLiteral      = '' ( {Char Ch} | '\'{Printable} )''
+
+Id               = {Id Head}{Id Tail}*
+                 
+
+
+Comment Start = '/*'
+Comment End   = '*/'
+Comment Line  = '//'
+              
+
+
+!--------------------------------------------------
+! Declaration
+!--------------------------------------------------
+
+<Decls> ::= <Decl> <Decls>
+          |
+          
+<Decl> ::= <Func Decl>
+         | <Var Decl>
+         | <Datatype Decl>
+
+
+
+!--------------------------------------------------
+! Function Declaration
+!--------------------------------------------------
+
+<Func Decl> ::= Id '(' <Func Params> ')' '->' <Type> <Block>
+              | Id '(' ')' '->' <Type> <Block>
+              | Id '(' <Func Params> ')' <Block>
+              | Id '(' ')' <Block>
+              
+<Func Params> ::= <Func Param List> ',' <Func Params>
+                | <Func Param List>
+                
+<Func Param List> ::= <Id List> ':' <Type>
+
+
+
+!--------------------------------------------------
+! Type
+!--------------------------------------------------
+
+<Type> ::= <Type Mod> <Signage> <Base>
+        
+<Signage> ::= signed
+            | unsigned
+            |
+            
+<Base> ::= char
+         | int
+         | short
+         | long
+         | short int
+         | long int
+         | float
+         | double
+         | void
+         | Id
+        
+<Type Mod> ::= <Type Mod> '*' 
+             !| <Type Mod> '[]'
+             !| <Type Mod> '[' <Expression> ']'
+             |
+
+
+
+!--------------------------------------------------
+! Datatype Declaration
+!--------------------------------------------------
+
+<Datatype Decl> ::= Id '{' <Datatype Def> '}'
+
+<Datatype Def> ::= <Var Decl> <Datatype Def>
+                 | <Func Decl> <Datatype Def>
+                 | <Constructor Decl> <Datatype Def>
+                 | <Destructor Decl> <Datatype Def>
+                 | ! This will technically allow datatypes with no data. This is not really allowed by C, but many compilers support it anyway.
+
+<Constructor Decl> ::= new '(' <Func Params> ')' <Block>
+                     | new '(' ')' <Block>
+                    
+<Destructor Decl> ::= del '(' ')' <Block>
+
+
+
+!--------------------------------------------------
+! Variable Declaration
+!--------------------------------------------------
+
+<Var Decl> ::= <Id List> ':' <Type> ';'
+             | <Id List> ':' <Type> '=' <Expression> ';'
+             !| <Id List> ':' '=' <Expression> ';'  !**TODO: Need to be able to get types from expressions first.
+
+<Id List> ::= Id ',' <Id List>
+            | Id
+
+
+
+!--------------------------------------------------
+! Statement
+!--------------------------------------------------
+
+<Stm> ::= <Var Decl>
+        | if '(' <Expression> ')' <Stm>
+        | if '(' <Expression> ')' <Then Stm> else <Stm>
+        | while '(' <Expression> ')' <Stm>
+        | for '(' <For Arg> ';' <For Arg> ';' <For Arg> ')' <Then Stm>
+        | <Normal Stm>
+        
+<Then Stm> ::= if '(' <Expression> ')' <Then Stm> else <Then Stm> 
+             | while '(' <Expression> ')' <Then Stm> 
+             | for '(' <For Arg> ';' <For Arg> ';' <For Arg> ')' <Then Stm>
+             | <Normal Stm>
+
+<Normal Stm> ::= do <Stm> while '(' <Expression> ')'
+               | switch '(' <Expression> ')' '{' <Case Stms> '}'
+               | <Block>
+               | <Expression> ';'
+               | break ';'
+               | continue ';'
+               | return ';'
+               | return <Expression> ';'
+               | ';'  !Null statement
+        
+<For Arg> ::= <Expression>
+            |
+
+<Case Stms> ::= case <Value> ':' <Stm List> <Case Stms>
+              | default ':' <Stm List>                  
+              |
+
+<Block>     ::= '{' <Stm List> '}' 
+
+<Stm List>  ::=  <Stm> <Stm List> 
+              | 
+
+
+
+!--------------------------------------------------
+! Expression
+!--------------------------------------------------
+
+<Expression> ::= <Op Assign>
+
+<Op Assign> ::= <Op Ternary> '=' <Op Assign>
+              | <Op Ternary> '+=' <Op Assign>
+              | <Op Ternary> '-=' <Op Assign>
+              | <Op Ternary> '*=' <Op Assign>
+              | <Op Ternary> '/=' <Op Assign>
+              | <Op Ternary> '%=' <Op Assign>
+              | <Op Ternary> '.^=' <Op Assign>
+              | <Op Ternary> '.&=' <Op Assign>
+              | <Op Ternary> '.|=' <Op Assign>
+              | <Op Ternary> '.>=' <Op Assign>
+              | <Op Ternary> '.<=' <Op Assign>
+              | <Op Ternary> 
+
+<Op Ternary> ::= <Op Or> '?' <Op Ternary> ':' <Op Ternary>
+               | <Op Or>
+
+<Op Or> ::= <Op Or> '|' <Op And>
+          | <Op And>
+
+<Op And> ::= <Op And> '&' <Op Equate>
+           | <Op Equate>
+
+<Op Equate> ::= <Op Equate> '==' <Op Compare>
+              | <Op Equate> '!=' <Op Compare>
+              | <Op Compare>
+
+<Op Compare> ::= <Op Compare> '<' <Op Add>
+               | <Op Compare> '>' <Op Add>
+               | <Op Compare> '<=' <Op Add>
+               | <Op Compare> '>=' <Op Add>
+               | <Op Add>
+
+<Op Add> ::= <Op Add> '+' <Op Mult>
+           | <Op Add> '-' <Op Mult>
+           | <Op Mult>
+
+<Op Mult> ::= <Op Mult> '*' <Op Bitwise>
+            | <Op Mult> '/' <Op Bitwise>
+            | <Op Mult> '%' <Op Bitwise>
+            | <Op Bitwise>
+
+<Op Bitwise> ::= <Op Bitwise> '.&' <Op Shift>
+               | <Op Bitwise> '.|' <Op Shift>
+               | <Op Bitwise> '.^' <Op Shift>
+               | <Op Shift>
+
+<Op Shift> ::= <Op Shift> '.<' <Op Unary>
+             | <Op Shift> '.>' <Op Unary>
+             | <Op Unary>
+
+<Op Unary> ::= '!' <Op Unary>
+             | '.!' <Op Unary>
+             | '-' <Op Unary>
+             | '@' <Op Unary>
+             | '[' <Type> ']' <Op Unary> 
+             | sizeof '(' <Type> ')'
+             | sizeof '(' <Expression> ')'  ! TODO: Fix ambiguity. sizeof(id), is id a type or an expression(variable)?
+             | <Op This>
+             | <Op Access>
+
+<Op This> ::= '.' <Op Access>  ! will be replaced with this->Id
+
+<Op Access> ::= <Op Access> '.' <Value>
+              | <Op Access> '!'  ! dereference
+              !| <Op Access> '->' <Value>
+              !| <Op Access> '[' <Expression> ']'
+              | <Value>
+
+<Value> ::= BinLiteral
+          | OctLiteral
+          | HexLiteral
+          | DecLiteral
+          | StringLiteral
+          | CharLiteral
+          | FloatLiteral
+          | Id '(' <Expression List> ')'
+          | Id '(' ')'
+          | new Id '(' <Expression List> ')'
+          | new Id '(' ')'
+          | new '*' Id '(' <Expression List> ')'
+          | new '*' Id '(' ')'
+          | Id
+          | '(' <Expression> ')'
+          
+<Expression List> ::= <Expression> ',' <Expression List>
+                    | <Expression>
