@@ -30,6 +30,35 @@ namespace SweetC
             GOLD.Production production = reduction.Parent;
             switch (reduction.Parent.Head().Text())
             {
+                case "<File>":
+                    {
+                        GOLD.Reduction cIncludes = (GOLD.Reduction)reduction[0].Data;
+                        GOLD.Reduction decls = (GOLD.Reduction)reduction[1].Data;
+                        BuildC(c, cIncludes);
+                        BuildC(c, decls);
+                        break;
+                    }
+
+                case "<C Includes>":
+                    {
+                        GOLD.SymbolList handle = production.Handle();
+                        if (handle.Count() > 0)
+                        {
+                            GOLD.Reduction cInclude = (GOLD.Reduction)reduction[0].Data;
+                            GOLD.Reduction cIncludes = (GOLD.Reduction)reduction[1].Data;
+                            BuildC(c, cInclude);
+                            BuildC(c, cIncludes);
+                        }
+                        break;
+                    }
+
+                case "<C Include>":
+                    {
+                        String includePath = (String)reduction[1].Data;
+                        c.Append("#include " + includePath + "\n");
+                        break;
+                    }
+
                 case "<Decls>":
                     {
                         GOLD.SymbolList handle = production.Handle();
@@ -226,9 +255,11 @@ namespace SweetC
                         childData.Add("ConstructorCount", 0);
                         childData.Add("DestructorCount", 0);
 
+                        c.Append("\n#if INTERFACE\n");
                         c.Append("typedef struct {\n");
                         BuildC(c, datatypeDef, childData);
-                        c.Append("} " + id + ";\n\n");
+                        c.Append("} " + id + ";\n");
+                        c.Append("#endif\n\n");
 
                         if ((int)childData["ConstructorCount"] == 0)
                         {
@@ -366,16 +397,24 @@ namespace SweetC
 
                 case "<Var Decl>":
                     {
+                        bool canExecuteStatements = false;  // ie. Set to true if inside a function and to false if declaring global variable.
+
                         GOLD.SymbolList handle = production.Handle();
                         String handleText = handle.Text(" ", false);
+
                         if (handleText == "<Id List> ':' <Type> ';'")
                         {
                             GOLD.Reduction list = (GOLD.Reduction)reduction[0].Data;
                             GOLD.Reduction type = (GOLD.Reduction)reduction[2].Data;
-                            BuildC(c, type);
-                            c.Append(" ");
-                            BuildC(c, list);
-                            c.Append(";\n");
+
+                            StringBuilder typeString = new StringBuilder();
+                            BuildC(typeString, type);
+
+                            Dictionary<string, object> listData = new Dictionary<string, object>();
+                            listData.Add("Datatype", typeString.ToString());
+
+                            BuildC(c, list, listData);
+                            c.Append("\n");
                         }
                         else if (handleText == "<Id List> ':' <Type> '=' <Expression> ';'")
                         {
@@ -386,32 +425,44 @@ namespace SweetC
                             StringBuilder typeString = new StringBuilder();
                             BuildC(typeString, type);
 
-                            StringBuilder listString = new StringBuilder();
-                            BuildC(listString, list);
+                            StringBuilder exprString = new StringBuilder();
+                            BuildC(exprString, expr);
 
-                            int listLength = 1;
-                            for (int i = 0; i < listString.Length; i++)
-                                if (listString[i] == ',')
-                                    listLength++;
+                            Dictionary<string, object> listData = new Dictionary<string, object>();
+                            listData.Add("Datatype", typeString.ToString());
+                            listData.Add("ListLength", 0);
+
+                            StringBuilder listString = new StringBuilder();
+                            BuildC(listString, list, listData);
+
+                            int listLength = (int)listData["ListLength"];
+                            listData.Remove("ListLength");  // Remove ListLength to prevent confusion since we don't need it anymore.
 
                             if (listLength == 1)
                             {
-                                c.Append(typeString + " " + listString + " = ");
-                                BuildC(c, expr);
-                                c.Append(";\n");
+                                listData.Add("Assign", exprString.ToString());
+                                BuildC(c, list, listData);
+                                c.Append("\n");
                             }
                             else
                             {
                                 // Cache expression in temp variable and assign it to each variable in list so it is only evaluated once.
-                                c.Append(typeString + " " + listString + ";\n");
+                                if (canExecuteStatements)
+                                {
+                                    BuildC(c, list, listData);
+                                    c.Append("\n{" + typeString + " temp=" + exprString + "; ");
+                                    listData.Remove("Datatype");  // Remove datatype so we do not redeclare each variable.
+                                    listData["Assign"] = "temp";
+                                    BuildC(c, list, listData);
+                                    c.Append(";}\n");
+                                }
+                                else
+                                {
+                                    listData.Add("Assign", exprString.ToString());
+                                    BuildC(c, list, listData);
+                                    c.Append("\n");
+                                }
 
-                                StringBuilder exprString = new StringBuilder();
-                                BuildC(exprString, expr);
-
-                                listString.Replace(",", "=temp,");
-                                listString.Append("=temp");
-
-                                c.Append("{" + typeString + " temp=" + exprString + "; " + typeString + " " + listString + ";}\n");
                                 //**TODO: Make sure this method of caching the expression does not cause problems when destructors are added.
                             }
                         }
@@ -424,18 +475,51 @@ namespace SweetC
 
                 case "<Id List>":
                     {
+                        string datatype = null;
+                        bool countListLength = false;
+                        string assign = "";
+                        if (data != null)
+                        {
+                            if (data.ContainsKey("Datatype"))
+                            {
+                                datatype = (String)data["Datatype"];
+                            }
+                            if (data.ContainsKey("ListLength"))
+                            {
+                                countListLength = true;
+                            }
+                            if (data.ContainsKey("Assign"))
+                            {
+                                assign = " = " + (String)data["Assign"];
+                            }
+                        }
+
                         GOLD.SymbolList handle = production.Handle();
                         if (handle.Count() == 1)
                         {
                             String id = (String)reduction[0].Data;
-                            c.Append(id);
+
+                            if (countListLength)
+                                data["ListLength"] = ((int)data["ListLength"]) + 1;
+
+                            if (datatype == null)
+                                c.Append(id + assign);
+                            else
+                                c.Append(datatype + " " + id + assign + ";");
                         }
                         else
                         {
                             String id = (String)reduction[0].Data;
                             GOLD.Reduction list = (GOLD.Reduction)reduction[2].Data;
-                            c.Append(id + ", ");
-                            BuildC(c, list);
+
+                            if (countListLength)
+                                data["ListLength"] = ((int)data["ListLength"]) + 1;
+
+                            if (datatype == null)
+                                c.Append(id + assign + ", ");
+                            else
+                                c.Append(datatype + " " + id + assign + "; ");
+                            BuildC(c, list, data);
                         }
                         break;
                     }

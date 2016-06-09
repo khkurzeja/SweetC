@@ -49,25 +49,43 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Compiler.cs" />
+    <Compile Include="Config.cs" />
     <Compile Include="GoldParser.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <Content Include="SweetC.egt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SweetC.egt" />
+    <None Include="scSrc\geom\Vec2.sc" />
+    <None Include="scSrc\Main.sc" />
+    <None Include="scSrc\sc.config">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="scSrc\Vec2.sc" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="GOLD Engine.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="SampleProgram.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <Content Include="MakeHeaders.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>xcopy /s /e /i /y "$(ProjectDir)scSrc" "$(ProjectDir)bin\$(ConfigurationName)\src"</PreBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

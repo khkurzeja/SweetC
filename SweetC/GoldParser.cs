@@ -9,13 +9,21 @@ class GoldParser
     public GOLD.Reduction Root;     //Store the top of the tree
     public string FailMessage;
 
+    public bool Setup(BinaryReader reader)
+    {
+        return parser.LoadTables(reader);
+    }
+
     public bool Setup(string EgtFilePath)
     {
         return parser.LoadTables(EgtFilePath);
     }
 
-    public bool Parse(TextReader reader)
+    //public bool Parse(TextReader reader)
+    public bool Parse(string path)
     {
+        TextReader reader = File.OpenText(path);
+
         //This procedure starts the GOLD Parser Engine and handles each of the
         //messages it returns. Each time a reduction is made, you can create new
         //custom object and reassign the .CurrentReduction property. Otherwise, 
@@ -41,7 +49,7 @@ class GoldParser
             {
                 case GOLD.ParseMessage.LexicalError:
                     //Cannot recognize token
-                    FailMessage = "Lexical Error:\n" +
+                    FailMessage = "Lexical Error in " + path + ":\n" +
                                   "Position: Ln " + parser.CurrentPosition().Line + ", Col " + parser.CurrentPosition().Column + "\n" +
                                   "Read: " + parser.CurrentToken().Data;
                     done = true;
@@ -49,7 +57,7 @@ class GoldParser
 
                 case GOLD.ParseMessage.SyntaxError:
                     //Expecting a different token
-                    FailMessage = "Syntax Error:\n" +
+                    FailMessage = "Syntax Error in " + path + ":\n" +
                                   "Position: Ln " + parser.CurrentPosition().Line + ", Col " + parser.CurrentPosition().Column + "\n" +
                                   "Read: " + parser.CurrentToken().Data + "\n" +
                                   "Expecting: " + parser.ExpectedSymbols().Text();

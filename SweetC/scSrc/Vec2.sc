@@ -1,6 +1,7 @@
 ﻿Vec2
 {
-	x, y: float;  //**TODO: Need to be able to set default values like x,y:float=0;  <- this will not work right now.
+	x, y: float;  // Might want to limit this to setting literals. If someone wants to set to a function, the function will be called multiple times, which may be unexpected.
+	              // You can't even set default values in C anyway. Maybe it should not be allowed.
 
 	// No function overloading for now. Need to create symbol table first to know which names to mangle (ie. don't mangle names we don't have a symbol for. These are from C)
 
@@ -28,15 +29,4 @@
 		.y *= s;
 		return this;
 	}
-}
-
-main()->int
-{
-	a: *Vec2 = new *Vec2(3, 7);
-	b: Vec2 = new Vec2(1, 2);
-	c: Vec2 = b.copy().add(a!)!;  // To call member functions, we first need the type of what is being called. Guess it is time to start working on a symbol table.
-
-	printf("%f, %f\n", c.x, c.y);
-
-	return 0;
 }

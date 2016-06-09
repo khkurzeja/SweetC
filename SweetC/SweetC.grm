@@ -4,7 +4,7 @@
 "About"   = 'Prototype'
 
 "Case Sensitive" = True
-"Start Symbol"   = <Decls>
+"Start Symbol"   = <File>
 
 
 
@@ -27,6 +27,9 @@ FloatLiteral     = {Digit}*'.'{Digit}+
 StringLiteral    = '"'( {String Ch} | '\'{Printable} )* '"'
 CharLiteral      = '' ( {Char Ch} | '\'{Printable} )''
 
+{Include Path Literal} = {Digit} + {Letter} + [_] + [-] + [/] + [\] + [.]
+IncludePath      = '<'{Include Path Literal}{Include Path Literal}*'>'
+
 Id               = {Id Head}{Id Tail}*
                  
 
@@ -34,7 +37,20 @@ Id               = {Id Head}{Id Tail}*
 Comment Start = '/*'
 Comment End   = '*/'
 Comment Line  = '//'
+
               
+
+!--------------------------------------------------
+! File
+!--------------------------------------------------
+
+<File> ::= <C Includes> <Decls>
+        
+<C Includes> ::= <C Include> <C Includes>
+               |
+               
+<C Include> ::= '#include' IncludePath
+
 
 
 !--------------------------------------------------
