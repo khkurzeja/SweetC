@@ -49,7 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Compiler.cs" />
-    <Compile Include="Config.cs" />
+    <Compile Include="Module.cs" />
     <Compile Include="GoldParser.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -66,12 +66,14 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <EmbeddedResource Include="SweetC.egt" />
-    <None Include="scSrc\geom\Vec2.sc" />
+    <None Include="scSrc\geom\Disk.sc" />
+    <None Include="scSrc\geom\Geom.m" />
+    <None Include="scSrc\geom\Line.sc" />
     <None Include="scSrc\Main.sc" />
-    <None Include="scSrc\sc.config">
+    <None Include="scSrc\Main.m">
       <SubType>Designer</SubType>
     </None>
-    <None Include="scSrc\Vec2.sc" />
+    <None Include="scSrc\geom\Vec2.sc" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="GOLD Engine.dll">

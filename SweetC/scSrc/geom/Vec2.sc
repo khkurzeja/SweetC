@@ -1,4 +1,4 @@
-﻿GeomVec2
+﻿Vec2
 {
 	x, y: float;  // Might want to limit this to setting literals. If someone wants to set to a function, the function will be called multiple times, which may be unexpected.
 	              // You can't even set default values in C anyway. Maybe it should not be allowed.
@@ -11,19 +11,19 @@
 		.y = y;
 	}
 
-	copy()->GeomVec2
+	copy()->Vec2
 	{
-		return new GeomVec2(.x, .y);
+		return new Vec2(.x, .y);
 	}
 
-	add(v: *GeomVec2)->*GeomVec2
+	add(v: *Vec2)->*Vec2
 	{
-		.x += v.x;
-		.y += v.y;
+		.x += v!.x;
+		.y += v!.y;
 		return this;
 	}
 
-	mul(s: float)->*GeomVec2
+	mul(s: float)->*Vec2
 	{
 		.x *= s;
 		.y *= s;

@@ -13,14 +13,15 @@ namespace SweetC
     {
         static void Main(string[] args)
         {
-            String scConfig = "src/sc.config";
+            String scModule = "src/Main.m";
             if (args.Length == 1)
             {
-                scConfig = args[0];
+                scModule = args[0];
             }
 
-            Config config = new Config(scConfig);
-            List<String> scPaths = config.scPaths;
+            Module module = new Module(scModule);
+            //Console.WriteLine(module.folderPath + " | " + module.name);
+            List<String> scPaths = module.scPaths;
 
             Console.WriteLine("Building C:");
             foreach (String path in scPaths)
@@ -40,8 +41,15 @@ namespace SweetC
                 GoldParser gold = new GoldParser();
                 gold.Setup(r);
 
-                foreach (String path in scPaths)
+                Directory.CreateDirectory("bin");
+                Directory.CreateDirectory("bin/c");
+                Directory.CreateDirectory("bin/c/" + module.name);
+
+                for (int i = 0; i < scPaths.Count; i++)
                 {
+                    String path = scPaths[i];
+                    String[] pathParts = module.scPathParts[i];
+
                     gold.Parse(path);
 
                     if (gold.FailMessage != null)
@@ -65,10 +73,9 @@ namespace SweetC
                             }
                             usedFilenames.Add(filename);
 
-                            c = "#include \"" + filename + ".h\"\n" + c;  // Make sure the c file includes the h file.
-                            Directory.CreateDirectory("bin");
-                            Directory.CreateDirectory("bin/c");
-                            File.WriteAllText("bin/c/" + filename + ".c", c);
+                            c = "#include \"" + filename + ".h\"\n#include <stdlib.h>\n" + c;  // Make sure the c file includes the h file and stdlib.h. Maybe should only include stdlib in files that use new*
+
+                            File.WriteAllText("bin/c/" + module.name + "/" + filename + ".c", c);
                         }
                         catch (Exception e) { Console.WriteLine("Error in " + path + ": " + e.Message); }
                     }
@@ -81,7 +88,7 @@ namespace SweetC
             startInfo.UseShellExecute = false;
             startInfo.FileName = "makeheaders.exe";
             //startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            startInfo.Arguments = "bin/c/*.c";
+            startInfo.Arguments = "bin/c/" + module.name + "/*.c";
 
             try
             {
@@ -92,7 +99,12 @@ namespace SweetC
             }
             catch (Exception e) { Console.WriteLine(e); }
 
+
+            // Generate makefile
+
+
             // Use MinGW or GCC with Cygwin to compile and run the c program.
+
 
             Console.WriteLine("Finish.");
 
