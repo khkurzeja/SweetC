@@ -17,6 +17,6 @@
 
 	area()->float
 	{
-		return 3.14159f * .radius * .radius;
+		return 3.14159 * .radius * .radius;
 	}
 }

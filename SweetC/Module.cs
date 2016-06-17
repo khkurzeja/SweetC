@@ -9,40 +9,56 @@ namespace SweetC
 {
     class Module
     {
-        public String path;  // Relative path from exe to module file
-        public String folderPath;  // Relative path from exe to folder module file is in
-        public String[] folderPathParts;  // folderPath split by forward or back slash
+        public Module parent;
+
         public String name;  // The name of the module file without the extension
+        public String folderPath;  // Relative path from exe to folder module file is in
 
-        public List<String> scPaths;
-        public List<String[]> scPathParts;
+        public List<SCFile> files;  // Full paths to each sc file in the module.
 
-        public Module(String modulePath)
+        public List<Module> modules;
+
+        public SymbolTable symbolTable;  // Maybe shouldn't go here.
+
+
+        //public List<String> scPaths;
+        //public List<String[]> scPathParts;
+
+        public Module(String path) : this(path, null) { }
+        public Module(String path, Module parent)
         {
-            path = modulePath;
+            this.parent = parent;
+            symbolTable = new SymbolTable();
+
             int lastSlash = Math.Max(path.LastIndexOf('/'), path.LastIndexOf('\\'));
+            int lastDot = path.LastIndexOf('.');
             if (lastSlash != -1)
             {
                 folderPath = path.Substring(0, lastSlash);
-                folderPathParts = folderPath.Split(new char[] { '/', '\\' });
-                name = path.Substring(lastSlash + 1, path.LastIndexOf('.') - lastSlash - 1);
+                if (lastDot != -1)
+                    name = path.Substring(lastSlash + 1, path.LastIndexOf('.') - lastSlash - 1);
+                else
+                    name = path.Substring(lastSlash + 1);
             }
             else
             {
                 folderPath = "";
-                folderPathParts = new string[] { };
-                name = path.Substring(0, path.LastIndexOf('.'));
+                if (lastDot != -1)
+                    name = path.Substring(0, path.LastIndexOf('.'));
+                else
+                    name = path;
             }
 
-            String text = File.ReadAllText(modulePath);
+            files = new List<SCFile>();
+            modules = new List<Module>();
 
-            scPaths = new List<string>();
-            scPathParts = new List<String[]>();
-
+            String text = File.ReadAllText(path);
             String[] lines = text.Split('\n');
 
             String sectionName = null;
 
+
+            // Parse file
             for (int i = 0; i < lines.Length; i++)
             {
                 String line = lines[i];
@@ -57,30 +73,42 @@ namespace SweetC
                 else if (isSymbol(line, 0, "::"))
                 {
                     if (line.Length == 2)
-                        throw new Exception("Empty section name in module file " + modulePath + " at line " + (i + 1));
+                        throw new Exception("Empty section name in module file " + path + " at line " + (i + 1));
                     sectionName = line.Substring(2).Trim();
                     if (sectionName.Length == 0)
-                        throw new Exception("Empty section name in module file " + modulePath + " at line " + (i+1));
+                        throw new Exception("Empty section name in module file " + path + " at line " + (i+1));
                 }
                 else if (isSymbol(line, 0, "|"))
                 {
                     if (line.Length == 1)
-                        throw new Exception("Empty value in module file " + modulePath + " at line " + (i + 1));
+                        throw new Exception("Empty value in module file " + path + " at line " + (i + 1));
                     String value = line.Substring(1).Trim();
 
                     if (sectionName.Equals("files", StringComparison.CurrentCultureIgnoreCase))
                     {
-                        scPaths.Add(Directory.GetCurrentDirectory() + "\\" + folderPath + "\\" + value);
-                        scPathParts.Add(value.Split(new char[] { '/', '\\' }));
+                        addFile(value);
                     }
-                    //else if (sectionName.Equals("absolute", StringComparison.CurrentCultureIgnoreCase))
-                    //    scPaths.Add(value);
+                    else if (sectionName.Equals("modules", StringComparison.CurrentCultureIgnoreCase))
+                    {
+                        modules.Add( new Module(folderPath + "/" + value, this) );
+                    }
                 }
                 else
                 {
                     throw new Exception("Unrecognized starting symbol in config at line " + (i+1));
                 }
             }
+        }
+
+        private void addFile(String path)
+        {
+            SCFile newFile = new SCFile(Directory.GetCurrentDirectory() + "\\" + folderPath + "\\" + path);
+
+            foreach (SCFile file in files)
+                if (file.name.Equals(newFile.name, StringComparison.CurrentCultureIgnoreCase))
+                    throw new Exception("Modules cannot contain more than one file with the same name. Module " + name + " contains more than one file called " + file.name);
+
+            files.Add(newFile);
         }
 
         private bool isSymbol(String text, int index, String symbol)

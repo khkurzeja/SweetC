@@ -22,7 +22,7 @@ class GoldParser
     //public bool Parse(TextReader reader)
     public bool Parse(string path)
     {
-        TextReader reader = File.OpenText(path);
+        parser.Restart();
 
         //This procedure starts the GOLD Parser Engine and handles each of the
         //messages it returns. Each time a reduction is made, you can create new
@@ -37,67 +37,73 @@ class GoldParser
         bool accepted = false;          //Was the parse successful?
         FailMessage = null;
 
-        parser.Open(reader);
-        parser.TrimReductions = true;  //Please read about this feature before enabling  
-
-        done = false;
-        while (!done)
+        
+        using (TextReader reader = File.OpenText(path))
         {
-            response = parser.Parse();
 
-            switch (response)
+            parser.Open(reader);
+            parser.TrimReductions = true;  //Please read about this feature before enabling  
+
+            done = false;
+            while (!done)
             {
-                case GOLD.ParseMessage.LexicalError:
-                    //Cannot recognize token
-                    FailMessage = "Lexical Error in " + path + ":\n" +
-                                  "Position: Ln " + parser.CurrentPosition().Line + ", Col " + parser.CurrentPosition().Column + "\n" +
-                                  "Read: " + parser.CurrentToken().Data;
-                    done = true;
-                    break;
+                response = parser.Parse();
 
-                case GOLD.ParseMessage.SyntaxError:
-                    //Expecting a different token
-                    FailMessage = "Syntax Error in " + path + ":\n" +
-                                  "Position: Ln " + parser.CurrentPosition().Line + ", Col " + parser.CurrentPosition().Column + "\n" +
-                                  "Read: " + parser.CurrentToken().Data + "\n" +
-                                  "Expecting: " + parser.ExpectedSymbols().Text();
-                    done = true;
-                    break;
+                switch (response)
+                {
+                    case GOLD.ParseMessage.LexicalError:
+                        //Cannot recognize token
+                        FailMessage = "Lexical Error in " + path + ":\n" +
+                                      "Position: Ln " + parser.CurrentPosition().Line + ", Col " + parser.CurrentPosition().Column + "\n" +
+                                      "Read: " + parser.CurrentToken().Data;
+                        done = true;
+                        break;
 
-                case GOLD.ParseMessage.Reduction:
-                    //For this project, we will let the parser build a tree of Reduction objects
-                    //parser.CurrentReduction = CreateNewObject(parser.CurrentReduction);
-                    break;
+                    case GOLD.ParseMessage.SyntaxError:
+                        //Expecting a different token
+                        FailMessage = "Syntax Error in " + path + ":\n" +
+                                      "Position: Ln " + parser.CurrentPosition().Line + ", Col " + parser.CurrentPosition().Column + "\n" +
+                                      "Read: " + parser.CurrentToken().Data + "\n" +
+                                      "Expecting: " + parser.ExpectedSymbols().Text();
+                        done = true;
+                        break;
 
-                case GOLD.ParseMessage.Accept:
-                    //Accepted!
-                    Root = (GOLD.Reduction)parser.CurrentReduction;    //The root node!                                  
-                    done = true;
-                    accepted = true;
-                    break;
+                    case GOLD.ParseMessage.Reduction:
+                        //For this project, we will let the parser build a tree of Reduction objects
+                        //parser.CurrentReduction = CreateNewObject(parser.CurrentReduction);
+                        break;
 
-                case GOLD.ParseMessage.TokenRead:
-                    //You don't have to do anything here.
-                    break;
+                    case GOLD.ParseMessage.Accept:
+                        //Accepted!
+                        Root = (GOLD.Reduction)parser.CurrentReduction;    //The root node!                                  
+                        done = true;
+                        accepted = true;
+                        break;
 
-                case GOLD.ParseMessage.InternalError:
-                    //INTERNAL ERROR! Something is horribly wrong.
-                    done = true;
-                    break;
+                    case GOLD.ParseMessage.TokenRead:
+                        //You don't have to do anything here.
+                        break;
 
-                case GOLD.ParseMessage.NotLoadedError:
-                    //This error occurs if the CGT was not loaded.                   
-                    FailMessage = "Tables not loaded";
-                    done = true;
-                    break;
+                    case GOLD.ParseMessage.InternalError:
+                        //INTERNAL ERROR! Something is horribly wrong.
+                        done = true;
+                        break;
 
-                case GOLD.ParseMessage.GroupError:
-                    //GROUP ERROR! Unexpected end of file
-                    FailMessage = "Runaway group";
-                    done = true;
-                    break;
-            }
-        } //while
+                    case GOLD.ParseMessage.NotLoadedError:
+                        //This error occurs if the CGT was not loaded.                   
+                        FailMessage = "Tables not loaded";
+                        done = true;
+                        break;
+
+                    case GOLD.ParseMessage.GroupError:
+                        //GROUP ERROR! Unexpected end of file
+                        FailMessage = "Runaway group";
+                        done = true;
+                        break;
+                }
+            } //while
+
+        }
 
         return accepted;
     }

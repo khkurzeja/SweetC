@@ -13,14 +13,168 @@ namespace SweetC
     {
         static void Main(string[] args)
         {
-            String scModule = "src/Main.m";
+            String rootModulePath = "src/Main.m";
             if (args.Length == 1)
             {
-                scModule = args[0];
+                rootModulePath = args[0];
             }
 
-            Module module = new Module(scModule);
-            //Console.WriteLine(module.folderPath + " | " + module.name);
+            Module rootModule = null;
+            try
+            {
+                rootModule = new Module(rootModulePath);
+            }
+            catch (Exception e) { Console.WriteLine("Error: " + e.Message); }
+
+
+            // Build C
+            if (rootModule != null)
+            {
+                Console.WriteLine("Building C:");
+
+                Directory.CreateDirectory("bin");
+                Directory.CreateDirectory("bin/c");
+
+                Assembly assembly = Assembly.GetExecutingAssembly();
+                using (Stream s = assembly.GetManifestResourceStream("SweetC.SweetC.egt"))
+                using (BinaryReader r = new BinaryReader(s))
+                {
+                    GoldParser gold = new GoldParser();
+                    gold.Setup(r);
+
+                    Stack<Module> moduleStack = new Stack<Module>();
+                    moduleStack.Push(rootModule);
+
+                    List<Module> processedModules = new List<Module>();  // Put a module here the first time it is popped.
+
+                    while (moduleStack.Count > 0)
+                    {
+                        Module module = moduleStack.Pop();
+                        bool processed = processedModules.Contains(module);
+
+                        if (module.modules.Count > 0 && !processed)
+                        {
+                            moduleStack.Push(module);  // Push back on stack to process after processing children.
+                            foreach (Module childModule in module.modules)
+                                moduleStack.Push(childModule);
+                        }
+                        else
+                        {
+                            // Create output directory if it does not exist
+                            Stack<Module> moduleOutputPath = new Stack<Module>();
+                            Module part = module;
+                            while (part != null)
+                            {
+                                moduleOutputPath.Push(part);
+                                part = part.parent;
+                            }
+
+                            String moduleOutputDir = "bin/c";
+                            while (moduleOutputPath.Count > 0)
+                            {
+                                part = moduleOutputPath.Pop();
+                                moduleOutputDir += "/" + part.name;
+                                Directory.CreateDirectory(moduleOutputDir);
+                            }
+
+                            // Build symbol table
+                            foreach (SCFile file in module.files)
+                            {
+                                Console.WriteLine("Building Symbol Table for " + module.name + " :: " + file.name + " (" + file.path + ")");
+
+                                try
+                                {
+                                    gold.Parse(file.path);
+
+                                    if (gold.FailMessage != null)
+                                        Console.WriteLine(gold.FailMessage);
+                                    else
+                                    {
+                                        Compiler creator = new Compiler(gold);
+                                        creator.BuildSymbolTable(module.symbolTable);
+                                    }
+                                }
+                                catch (Exception e) { Console.WriteLine("Error in " + file.path + ": " + e.Message); }
+                            }
+
+                            // Build C
+                            foreach (SCFile file in module.files)
+                            {
+                                Console.WriteLine("Building C for " + module.name + " :: " + file.name + " (" + file.path + ")");
+
+                                try
+                                {
+                                    gold.Parse(file.path);
+
+                                    if (gold.FailMessage != null)
+                                        Console.WriteLine(gold.FailMessage);
+                                    else
+                                    {
+                                        Compiler creator = new Compiler(gold);
+                                        String c = creator.BuildC(module.symbolTable);
+                                        c = "#include \"" + file.name + ".h\"\n#include <stdlib.h>\n" + c;
+
+                                        File.WriteAllText(moduleOutputDir + "/" + file.name + ".c", c);
+                                    }
+                                }
+                                catch (Exception e) { Console.WriteLine("Error in " + file.path + ": " + e.Message); }
+                            }
+                        }
+
+                        if (!processed)
+                            processedModules.Add(module);
+                    }
+                }
+            }
+
+
+            // Build h
+            if (rootModule != null)
+            {
+                ProcessStartInfo startInfo = new ProcessStartInfo();
+                startInfo.CreateNoWindow = false;
+                startInfo.UseShellExecute = false;
+                startInfo.FileName = "makeheaders.exe";
+                startInfo.Arguments = "";
+
+                Stack<Module> moduleStack = new Stack<Module>();
+                moduleStack.Push(rootModule);
+                while (moduleStack.Count > 0)
+                {
+                    Module module = moduleStack.Pop();
+                    foreach (Module childModule in module.modules)
+                        moduleStack.Push(childModule);
+
+                    Stack<Module> moduleOutputPath = new Stack<Module>();
+                    Module part = module;
+                    while (part != null)
+                    {
+                        moduleOutputPath.Push(part);
+                        part = part.parent;
+                    }
+
+                    String moduleOutputDir = "bin/c";
+                    while (moduleOutputPath.Count > 0)
+                    {
+                        part = moduleOutputPath.Pop();
+                        moduleOutputDir += "/" + part.name;
+                    }
+
+                    startInfo.Arguments += " " + moduleOutputDir + "/*.c";
+                }
+
+                try
+                {
+                    using (Process exeProcess = Process.Start(startInfo))
+                    {
+                        exeProcess.WaitForExit();
+                    }
+                }
+                catch (Exception e) { Console.WriteLine(e); }
+            }
+
+
+            /*//Console.WriteLine(module.folderPath + " | " + module.name);
             List<String> scPaths = module.scPaths;
 
             Console.WriteLine("Building C:");
@@ -97,7 +251,7 @@ namespace SweetC
                     exeProcess.WaitForExit();
                 }
             }
-            catch (Exception e) { Console.WriteLine(e); }
+            catch (Exception e) { Console.WriteLine(e); }*/
 
 
             // Generate makefile

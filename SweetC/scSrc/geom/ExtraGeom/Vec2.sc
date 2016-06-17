@@ -1,4 +1,4 @@
-﻿Vec2
+﻿GVec2
 {
 	x, y: float;  // Might want to limit this to setting literals. If someone wants to set to a function, the function will be called multiple times, which may be unexpected.
 	              // You can't even set default values in C anyway. Maybe it should not be allowed.
@@ -11,24 +11,19 @@
 		.y = y;
 	}
 
-	del()
+	copy()->GVec2
 	{
-		only_in_del: long = 80085;
+		return new GVec2(.x, .y);
 	}
 
-	copy()->Vec2
-	{
-		return new Vec2(.x, .y);
-	}
-
-	add(v: *Vec2)->*Vec2
+	add(v: *GVec2)->*GVec2
 	{
 		.x += v!.x;
 		.y += v!.y;
 		return this;
 	}
 
-	mul(s: float)->*Vec2
+	mul(s: float)->*GVec2
 	{
 		.x *= s;
 		.y *= s;

@@ -16,7 +16,7 @@ namespace SweetC
             gold = pGold;
         }
 
-        public String BuildC()
+        public String BuildC(SymbolTable moduleSymbolTable)
         {
             StringBuilder c = new StringBuilder();
 
@@ -25,7 +25,7 @@ namespace SweetC
             return c.ToString();
         }
 
-        private void BuildC(StringBuilder c, GOLD.Reduction reduction, Dictionary<String,Object> data=null)
+        private void BuildC(StringBuilder c, GOLD.Reduction reduction, Dictionary<String, Object> data = null)
         {
             GOLD.Production production = reduction.Parent;
             switch (reduction.Parent.Head().Text())
@@ -561,15 +561,15 @@ namespace SweetC
                             BuildC(c, stm);
                             c.Append("}");
                         }
-                        else if (handleText == "for '(' <For Arg> ';' <For Arg> ';' <For Arg> ')' <Stm>")
+                        else if (handleText == "for '(' <First For Arg> <For Arg> ';' <For Arg> ')' <Then Stm>")
                         {
                             GOLD.Reduction arg1 = (GOLD.Reduction)reduction[2].Data;
-                            GOLD.Reduction arg2 = (GOLD.Reduction)reduction[4].Data;
-                            GOLD.Reduction arg3 = (GOLD.Reduction)reduction[6].Data;
-                            GOLD.Reduction stm = (GOLD.Reduction)reduction[8].Data;
+                            GOLD.Reduction arg2 = (GOLD.Reduction)reduction[3].Data;
+                            GOLD.Reduction arg3 = (GOLD.Reduction)reduction[5].Data;
+                            GOLD.Reduction stm = (GOLD.Reduction)reduction[7].Data;
                             c.Append("for (");
                             BuildC(c, arg1);
-                            c.Append("; ");
+                            
                             BuildC(c, arg2);
                             c.Append("; ");
                             BuildC(c, arg3);
@@ -607,21 +607,54 @@ namespace SweetC
                             BuildC(c, thenStm);
                             c.Append("}");
                         }
-                        else if (handleText == "for '(' <For Arg> ';' <For Arg> ';' <For Arg> ')' <Stm>")
+                        else if (handleText == "for '(' <First For Arg> <For Arg> ';' <For Arg> ')' <Then Stm>")
                         {
                             GOLD.Reduction arg1 = (GOLD.Reduction)reduction[2].Data;
-                            GOLD.Reduction arg2 = (GOLD.Reduction)reduction[4].Data;
-                            GOLD.Reduction arg3 = (GOLD.Reduction)reduction[6].Data;
-                            GOLD.Reduction stm = (GOLD.Reduction)reduction[8].Data;
+                            GOLD.Reduction arg2 = (GOLD.Reduction)reduction[3].Data;
+                            GOLD.Reduction arg3 = (GOLD.Reduction)reduction[5].Data;
+                            GOLD.Reduction stm = (GOLD.Reduction)reduction[7].Data;
                             c.Append("for (");
                             BuildC(c, arg1);
-                            c.Append("; ");
+                            
                             BuildC(c, arg2);
                             c.Append("; ");
                             BuildC(c, arg3);
                             c.Append(") {");
                             BuildC(c, stm);
                             c.Append("}");
+                        }
+                        break;
+                    }
+
+                case "<First For Arg>":
+                    {
+                        GOLD.SymbolList handle = production.Handle();
+                        String handleText = handle.Text(" ", false);
+                        if (handleText == "<Expression> ';'")
+                        {
+                            GOLD.Reduction expr = (GOLD.Reduction)reduction[0].Data;
+                            BuildC(c, expr);
+                            c.Append("; ");
+                        }
+                        else if (handleText == "<Var Decl>")
+                        {
+                            GOLD.Reduction varDecl = (GOLD.Reduction)reduction[0].Data;
+                            BuildC(c, varDecl);
+                        }
+                        else if (handleText == "';'")
+                        {
+                            c.Append("; ");
+                        }
+                        break;
+                    }
+
+                case "<For Arg>":
+                    {
+                        GOLD.SymbolList handle = production.Handle();
+                        if (handle.Count() > 0)
+                        {
+                            GOLD.Reduction expr = (GOLD.Reduction)reduction[0].Data;
+                            BuildC(c, expr);
                         }
                         break;
                     }
@@ -1075,6 +1108,439 @@ namespace SweetC
             }
 
             //Console.WriteLine( reduction.Parent.Handle().Text(" ", false) );
+        }
+
+        public void BuildSymbolTable(SymbolTable moduleSymbolTable)
+        {
+            BuildSymbolTable(moduleSymbolTable, gold.Root, new Dictionary<string, object>());
+        }
+
+        private void BuildSymbolTable(SymbolTable symbolTable, GOLD.Reduction reduction, Dictionary<String, Object> data)
+        {
+            GOLD.Production production = reduction.Parent;
+            switch (reduction.Parent.Head().Text())
+            {
+                case "<Var Decl>":
+                    {
+                        GOLD.SymbolList handle = production.Handle();
+                        String handleText = handle.Text(" ", false);
+
+                        if (handleText == "<Id List> ':' <Type> ';'")
+                        {
+                            GOLD.Reduction list = (GOLD.Reduction)reduction[0].Data;
+                            GOLD.Reduction type = (GOLD.Reduction)reduction[2].Data;
+
+                            StringBuilder typeString = new StringBuilder();
+                            BuildC(typeString, type);
+
+                            StringBuilder listString = new StringBuilder();
+                            BuildC(listString, list);
+
+                            String[] listElements = listString.ToString().Split(',');
+                            foreach (String element in listElements)
+                            {
+                                String trimmed = element.Trim();
+                                symbolTable.addSymbol(trimmed, IdentType.CreateVariable(typeString.ToString()));  //**TODO: verify type string is always created consistently. There should only be one way to write any type.
+                            }
+                        }
+                        else if (handleText == "<Id List> ':' <Type> '=' <Expression> ';'")
+                        {
+                            GOLD.Reduction list = (GOLD.Reduction)reduction[0].Data;
+                            GOLD.Reduction type = (GOLD.Reduction)reduction[2].Data;
+
+                            StringBuilder typeString = new StringBuilder();
+                            BuildC(typeString, type);
+
+                            StringBuilder listString = new StringBuilder();
+                            BuildC(listString, list);
+
+                            String[] listElements = listString.ToString().Split(',');
+                            foreach (String element in listElements)
+                            {
+                                String trimmed = element.Trim();
+                                symbolTable.addSymbol(trimmed, IdentType.CreateVariable(typeString.ToString()));
+                            }
+                        }
+                        else
+                        {
+                            throw new Exception("Failed to construct Var Decl");
+                        }
+
+                        // Recurse just in case, though this shouldn't be necessary for var decl.
+                        for (int i = 0; i < reduction.Count(); i++)
+                            if (reduction[i].Type() == GOLD.SymbolType.Nonterminal)
+                                BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[i].Data, data);
+
+                        break;
+                    }
+
+                case "<Func Decl>":
+                    {
+                        GOLD.SymbolList handle = production.Handle();
+                        String handleText = handle.Text(" ", false);
+                        if (handleText == "Id '(' ')' <Block>")
+                        {
+                            String id = (String)reduction[0].Data;
+                            symbolTable.addSymbol(id, IdentType.CreateFunction("void", new string[] { }));
+
+                            BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[3].Data, data);
+                        }
+                        else if (handleText == "Id '(' ')' '->' <Type> <Block>")
+                        {
+                            String id = (String)reduction[0].Data;
+                            GOLD.Reduction type = (GOLD.Reduction)reduction[4].Data;
+
+                            StringBuilder typeString = new StringBuilder();
+                            BuildC(typeString, type);
+
+                            symbolTable.addSymbol(id, IdentType.CreateFunction(typeString.ToString(), new string[] { }));
+
+                            BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[5].Data, data);
+                        }
+                        else if (handleText == "Id '(' <Func Params> ')' <Block>")
+                        {
+                            String id = (String)reduction[0].Data;
+                            GOLD.Reduction funcParams = (GOLD.Reduction)reduction[2].Data;
+
+                            List<String> typeList = new List<string>();
+                            BuildTypeList(typeList, funcParams, new Dictionary<string, object>());
+
+                            symbolTable.addSymbol(id, IdentType.CreateFunction("void", typeList.ToArray()));
+
+                            List<String> idList = new List<string>();
+                            BuildIdList(idList, funcParams, new Dictionary<string, object>());
+
+                            if (typeList.Count != idList.Count)
+                                throw new Exception("Type list and id list are not the same length... This is a bug in the compiler.");
+
+                            BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[4].Data, data);
+                            if (!data.ContainsKey("LastBlockSymbolTable"))
+                                throw new Exception("Block did not return its symbol table in data. This is a compiler bug.");
+
+                            SymbolTable blockST = (SymbolTable)data["LastBlockSymbolTable"];
+
+                            for (int i = 0; i < typeList.Count; i++)
+                            {
+                                String paramType = typeList[i];
+                                String paramId = idList[i];
+                                blockST.addSymbol(paramId, IdentType.CreateVariable(paramType));
+                            }
+                        }
+                        else if (handleText == "Id '(' <Func Params> ')' '->' <Type> <Block>")
+                        {
+                            String id = (String)reduction[0].Data;
+                            GOLD.Reduction funcParams = (GOLD.Reduction)reduction[2].Data;
+                            GOLD.Reduction type = (GOLD.Reduction)reduction[5].Data;
+
+                            StringBuilder typeString = new StringBuilder();
+                            BuildC(typeString, type);
+
+                            List<String> typeList = new List<string>();
+                            BuildTypeList(typeList, funcParams, new Dictionary<string, object>());
+
+                            symbolTable.addSymbol(id, IdentType.CreateFunction(typeString.ToString(), typeList.ToArray()));
+
+                            List<String> idList = new List<string>();
+                            BuildIdList(idList, funcParams, new Dictionary<string, object>());
+
+                            if (typeList.Count != idList.Count)
+                                throw new Exception("Type list and id list are not the same length... This is a bug in the compiler.");
+
+                            BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[6].Data, data);
+                            if (!data.ContainsKey("LastBlockSymbolTable"))
+                                throw new Exception("Block did not return its symbol table in data. This is a compiler bug.");
+
+                            SymbolTable blockST = (SymbolTable)data["LastBlockSymbolTable"];
+
+                            for (int i = 0; i < typeList.Count; i++)
+                            {
+                                String paramType = typeList[i];
+                                String paramId = idList[i];
+                                blockST.addSymbol(paramId, IdentType.CreateVariable(paramType));
+                            }
+                        }
+
+                        // Only recurse for blocks, and this is done above.
+                        //for (int i = 0; i < reduction.Count(); i++)
+                        //    if (reduction[i].Type() == GOLD.SymbolType.Nonterminal)
+                        //        BuildSymbolTable(newST, (GOLD.Reduction)reduction[i].Data, data);
+
+                        break;
+                    }
+
+                case "<Datatype Decl>":
+                    {
+                        //data.Add("IsMember", true);
+
+                        String id = (String)reduction[0].Data;
+                        GOLD.Reduction datatypeDef = (GOLD.Reduction)reduction[2].Data;
+
+                        symbolTable.addSymbol(id, IdentType.CreateDatatype());
+
+                        data.Add("Datatype", id);
+
+                        SymbolTable newST = new SymbolTable();
+                        symbolTable.addChild(newST);
+                        BuildSymbolTable(newST, datatypeDef, data);
+
+                        data.Remove("Datatype");
+
+                        //data.Add("IsMember", false);
+                        break;
+                    }
+
+                case "<Constructor Decl>":
+                    {
+                        if (data == null)
+                            throw new Exception("Cannot create constructor without 'Datatype' data");
+                        string datatype = (String)data["Datatype"];
+
+                        GOLD.SymbolList handle = production.Handle();
+                        String handleText = handle.Text(" ", false);
+                        if (handleText == "new '(' ')' <Block>")
+                        {
+                            symbolTable.addSymbol("new", IdentType.CreateFunction("*" + datatype, new string[] { }));
+
+                            BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[3].Data, data);
+                        }
+                        else if (handleText == "new '(' <Func Params> ')' <Block>")
+                        {
+                            GOLD.Reduction funcParams = (GOLD.Reduction)reduction[2].Data;
+
+                            List<String> typeList = new List<string>();
+                            BuildTypeList(typeList, funcParams, new Dictionary<string, object>());
+
+                            symbolTable.addSymbol("new", IdentType.CreateFunction("*" + datatype, typeList.ToArray()));
+
+                            List<String> idList = new List<string>();
+                            BuildIdList(idList, funcParams, new Dictionary<string, object>());
+
+                            if (typeList.Count != idList.Count)
+                                throw new Exception("Type list and id list of constructor are not the same length... This is a bug in the compiler.");
+
+                            BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[4].Data, data);
+                            if (!data.ContainsKey("LastBlockSymbolTable"))
+                                throw new Exception("Block did not return its symbol table in data. This is a compiler bug.");
+
+                            SymbolTable blockST = (SymbolTable)data["LastBlockSymbolTable"];
+
+                            for (int i = 0; i < typeList.Count; i++)
+                            {
+                                String paramType = typeList[i];
+                                String paramId = idList[i];
+                                blockST.addSymbol(paramId, IdentType.CreateVariable(paramType));
+                            }
+                        }
+
+                        break;
+                    }
+
+                case "<Destructor Decl>":
+                    {
+                        symbolTable.addSymbol("del", IdentType.CreateFunction("void", new string[] { }));
+                        BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[3].Data, data);
+
+                        break;
+                    }
+
+                case "<Stm>":
+                    {
+                        GOLD.SymbolList handle = production.Handle();
+                        String handleText = handle.Text(" ", false);
+                        if (handleText == "for '(' <First For Arg> <For Arg> ';' <For Arg> ')' <Then Stm>")
+                        {
+                            GOLD.Reduction arg1 = (GOLD.Reduction)reduction[2].Data;
+                            GOLD.Reduction arg2 = (GOLD.Reduction)reduction[3].Data;
+                            GOLD.Reduction arg3 = (GOLD.Reduction)reduction[5].Data;
+                            GOLD.Reduction stm = (GOLD.Reduction)reduction[7].Data;
+
+                            SymbolTable newST = new SymbolTable();
+                            symbolTable.addChild(newST);
+
+                            BuildSymbolTable(newST, arg1, data);
+
+                            BuildSymbolTable(newST, arg2, data);
+                            BuildSymbolTable(newST, arg3, data);
+                            BuildSymbolTable(newST, stm, data);
+                        }
+                        else
+                        {
+                            for (int i = 0; i < reduction.Count(); i++)
+                                if (reduction[i].Type() == GOLD.SymbolType.Nonterminal)
+                                    BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[i].Data, data);
+                        }
+
+                        break;
+                    }
+
+                case "<Then Stm>":
+                    {
+                        GOLD.SymbolList handle = production.Handle();
+                        String handleText = handle.Text(" ", false);
+                        if (handleText == "for '(' <First For Arg> <For Arg> ';' <For Arg> ')' <Then Stm>")
+                        {
+                            GOLD.Reduction arg1 = (GOLD.Reduction)reduction[2].Data;
+                            GOLD.Reduction arg2 = (GOLD.Reduction)reduction[3].Data;
+                            GOLD.Reduction arg3 = (GOLD.Reduction)reduction[5].Data;
+                            GOLD.Reduction stm = (GOLD.Reduction)reduction[7].Data;
+
+                            SymbolTable newST = new SymbolTable();
+                            symbolTable.addChild(newST);
+
+                            BuildSymbolTable(newST, arg1, data);
+
+                            BuildSymbolTable(newST, arg2, data);
+                            BuildSymbolTable(newST, arg3, data);
+                            BuildSymbolTable(newST, stm, data);
+                        }
+                        else
+                        {
+                            for (int i = 0; i < reduction.Count(); i++)
+                                if (reduction[i].Type() == GOLD.SymbolType.Nonterminal)
+                                    BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[i].Data, data);
+                        }
+
+                        break;
+                    }
+
+                case "<Block>":
+                    {
+                        SymbolTable newST = new SymbolTable();
+                        symbolTable.addChild(newST);
+
+                        for (int i = 0; i < reduction.Count(); i++)
+                            if (reduction[i].Type() == GOLD.SymbolType.Nonterminal)
+                                BuildSymbolTable(newST, (GOLD.Reduction)reduction[i].Data, data);
+
+                        data["LastBlockSymbolTable"] = newST;
+
+                        break;
+                    }
+
+                    //**TODO: Need to add child symbol tables in appropriate places to handle scope. Should probably plan this on paper.
+
+                default:
+                    {
+                        for (int i = 0; i < reduction.Count(); i++)
+                            if (reduction[i].Type() == GOLD.SymbolType.Nonterminal)
+                                BuildSymbolTable(symbolTable, (GOLD.Reduction)reduction[i].Data, data);
+                        break;
+                    }
+            }
+        }
+
+
+        private void BuildTypeList(List<String> typeList, GOLD.Reduction reduction, Dictionary<String, Object> data)
+        {
+            GOLD.Production production = reduction.Parent;
+            switch (reduction.Parent.Head().Text())
+            {
+                case "<Func Param List>":
+                    {
+                        GOLD.Reduction list = (GOLD.Reduction)reduction[0].Data;
+                        GOLD.Reduction type = (GOLD.Reduction)reduction[2].Data;
+
+                        StringBuilder typeString = new StringBuilder();
+                        BuildC(typeString, type);
+                        String trimmed = typeString.ToString().Trim();
+
+                        StringBuilder listString = new StringBuilder();
+                        BuildC(listString, list);
+
+                        String[] listElements = listString.ToString().Split(',');
+                        foreach (String element in listElements)
+                        {
+                            typeList.Add(typeString.ToString());
+                        }
+
+                        for (int i = 0; i < reduction.Count(); i++)
+                            if (reduction[i].Type() == GOLD.SymbolType.Nonterminal)
+                                BuildTypeList(typeList, (GOLD.Reduction)reduction[i].Data, data);
+
+                        break;
+                    }
+
+                default:
+                    {
+                        for (int i = 0; i < reduction.Count(); i++)
+                            if (reduction[i].Type() == GOLD.SymbolType.Nonterminal)
+                                BuildTypeList(typeList, (GOLD.Reduction)reduction[i].Data, data);
+                        break;
+                    }
+            }
+        }
+
+
+        private void BuildIdList(List<String> idList, GOLD.Reduction reduction, Dictionary<String, Object> data)
+        {
+            GOLD.Production production = reduction.Parent;
+            switch (reduction.Parent.Head().Text())
+            {
+                case "<Func Param List>":
+                    {
+                        GOLD.Reduction list = (GOLD.Reduction)reduction[0].Data;
+
+                        StringBuilder listString = new StringBuilder();
+                        BuildC(listString, list);
+
+                        String[] listElements = listString.ToString().Split(',');
+                        foreach (String element in listElements)
+                        {
+                            String trimmed = element.Trim();
+                            idList.Add(trimmed);
+                        }
+
+                        for (int i = 0; i < reduction.Count(); i++)
+                            if (reduction[i].Type() == GOLD.SymbolType.Nonterminal)
+                                BuildIdList(idList, (GOLD.Reduction)reduction[i].Data, data);
+
+                        break;
+                    }
+
+                default:
+                    {
+                        for (int i = 0; i < reduction.Count(); i++)
+                            if (reduction[i].Type() == GOLD.SymbolType.Nonterminal)
+                                BuildIdList(idList, (GOLD.Reduction)reduction[i].Data, data);
+                        break;
+                    }
+            }
+        }
+
+
+        private void TypeFromExpression(StringBuilder type, GOLD.Reduction reduction, Dictionary<String, Object> data)
+        {
+            GOLD.Production production = reduction.Parent;
+            switch (reduction.Parent.Head().Text())
+            {
+                case "<Value>":
+                    {
+                        GOLD.SymbolList handle = production.Handle();
+                        String handleText = handle.Text(" ", false);
+                        if (handleText == "BinLiteral" || handleText == "OctLiteral" || handleText == "HexLiteral" || handleText == "DecLiteral")
+                        {
+                            type.Append("int");
+                        }
+                        else if (handleText == "CharLiteral")
+                        {
+                            type.Append("char");
+                        }
+                        else if (handleText == "StringLiteral")
+                        {
+                            type.Append("String");
+                        }
+                        else if (handleText == "FloatLiteral")
+                        {
+                            type.Append("float");  //**TODO: Add other literals, like double or long
+                        }
+                        else if (handleText == "CharLiteral")
+                        {
+                            type.Append("char");
+                        }
+
+                        break;
+                    }
+            }
         }
     }
 }

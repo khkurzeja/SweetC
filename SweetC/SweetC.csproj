@@ -49,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Compiler.cs" />
+    <Compile Include="IdentType.cs" />
     <Compile Include="Module.cs" />
     <Compile Include="GoldParser.cs" />
     <Compile Include="Program.cs" />
@@ -58,6 +59,8 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="SCFile.cs" />
+    <Compile Include="SymbolTable.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -67,6 +70,7 @@
     </EmbeddedResource>
     <EmbeddedResource Include="SweetC.egt" />
     <None Include="scSrc\geom\Disk.sc" />
+    <None Include="scSrc\geom\ExtraGeom\Vec2.sc" />
     <None Include="scSrc\geom\Geom.m" />
     <None Include="scSrc\geom\Line.sc" />
     <None Include="scSrc\Main.sc" />

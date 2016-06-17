@@ -7,6 +7,11 @@ main()->int
 	c: Vec2 = _copy_Vec2(_add_Vec2(@b, a));
 	//c: Vec2 = b.add(a!).copy();  // To call member functions, we first need the type of what is being called. Guess it is time to start working on a symbol table.
 
+	for (i: int = 0; i < 10; i += 10)
+	{
+		doStuff(i);
+	}
+
 	printf("%f, %f\n", c.x, c.y);
 
 	//q: *Vec2 = @b;

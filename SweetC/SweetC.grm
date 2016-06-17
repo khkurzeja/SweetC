@@ -150,12 +150,12 @@ Comment Line  = '//'
         | if '(' <Expression> ')' <Stm>
         | if '(' <Expression> ')' <Then Stm> else <Stm>
         | while '(' <Expression> ')' <Stm>
-        | for '(' <For Arg> ';' <For Arg> ';' <For Arg> ')' <Then Stm>
+        | for '(' <First For Arg> <For Arg> ';' <For Arg> ')' <Then Stm>
         | <Normal Stm>
         
 <Then Stm> ::= if '(' <Expression> ')' <Then Stm> else <Then Stm> 
              | while '(' <Expression> ')' <Then Stm> 
-             | for '(' <For Arg> ';' <For Arg> ';' <For Arg> ')' <Then Stm>
+             | for '(' <First For Arg> <For Arg> ';' <For Arg> ')' <Then Stm>
              | <Normal Stm>
 
 <Normal Stm> ::= do <Stm> while '(' <Expression> ')'
@@ -168,6 +168,10 @@ Comment Line  = '//'
                | return <Expression> ';'
                | ';'  !Null statement
         
+<First For Arg> ::= <Expression> ';'
+                  | <Var Decl>
+                  | ';'
+
 <For Arg> ::= <Expression>
             |
 
