@@ -49,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Compiler.cs" />
+    <Compile Include="CppCompiler.cs" />
     <Compile Include="IdentType.cs" />
     <Compile Include="Module.cs" />
     <Compile Include="GoldParser.cs" />

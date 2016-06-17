@@ -30,10 +30,10 @@ namespace SweetC
             // Build C
             if (rootModule != null)
             {
-                Console.WriteLine("Building C:");
+                Console.WriteLine("Building Cpp:");
 
                 Directory.CreateDirectory("bin");
-                Directory.CreateDirectory("bin/c");
+                Directory.CreateDirectory("bin/cpp");
 
                 Assembly assembly = Assembly.GetExecutingAssembly();
                 using (Stream s = assembly.GetManifestResourceStream("SweetC.SweetC.egt"))
@@ -69,7 +69,7 @@ namespace SweetC
                                 part = part.parent;
                             }
 
-                            String moduleOutputDir = "bin/c";
+                            String moduleOutputDir = "bin/cpp";
                             while (moduleOutputPath.Count > 0)
                             {
                                 part = moduleOutputPath.Pop();
@@ -78,7 +78,7 @@ namespace SweetC
                             }
 
                             // Build symbol table
-                            foreach (SCFile file in module.files)
+                            /*foreach (SCFile file in module.files)
                             {
                                 Console.WriteLine("Building Symbol Table for " + module.name + " :: " + file.name + " (" + file.path + ")");
 
@@ -95,12 +95,12 @@ namespace SweetC
                                     }
                                 }
                                 catch (Exception e) { Console.WriteLine("Error in " + file.path + ": " + e.Message); }
-                            }
+                            }*/
 
-                            // Build C
+                            // Build Cpp
                             foreach (SCFile file in module.files)
                             {
-                                Console.WriteLine("Building C for " + module.name + " :: " + file.name + " (" + file.path + ")");
+                                Console.WriteLine("Building Cpp for " + module.name + " :: " + file.name + " (" + file.path + ")");
 
                                 try
                                 {
@@ -110,11 +110,11 @@ namespace SweetC
                                         Console.WriteLine(gold.FailMessage);
                                     else
                                     {
-                                        Compiler creator = new Compiler(gold);
-                                        String c = creator.BuildC(module.symbolTable);
-                                        c = "#include \"" + file.name + ".h\"\n#include <stdlib.h>\n" + c;
+                                        CppCompiler creator = new CppCompiler(gold);
+                                        String cpp = creator.BuildCpp();
+                                        cpp = "#include \"" + file.name + ".hpp\"\n#include <stdlib.h>\n" + cpp;
 
-                                        File.WriteAllText(moduleOutputDir + "/" + file.name + ".c", c);
+                                        File.WriteAllText(moduleOutputDir + "/" + file.name + ".cpp", cpp);
                                     }
                                 }
                                 catch (Exception e) { Console.WriteLine("Error in " + file.path + ": " + e.Message); }
@@ -153,14 +153,14 @@ namespace SweetC
                         part = part.parent;
                     }
 
-                    String moduleOutputDir = "bin/c";
+                    String moduleOutputDir = "bin/cpp";
                     while (moduleOutputPath.Count > 0)
                     {
                         part = moduleOutputPath.Pop();
                         moduleOutputDir += "/" + part.name;
                     }
 
-                    startInfo.Arguments += " " + moduleOutputDir + "/*.c";
+                    startInfo.Arguments += " " + moduleOutputDir + "/*.cpp";
                 }
 
                 try
